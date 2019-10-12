@@ -1,0 +1,133 @@
+#!/bin/zsh
+
+krunk_command_config_init() {
+	if [[ ! -z $KRUNK_PREFIX ]]; then
+		echo "Krunk has already been setup."
+		return
+	elif [[ $# -eq 0 ]]; then
+		local HOME_DIR=$HOME
+	elif [[ ! -z "${1// }" ]]; then
+		local HOME_DIR=$1
+	fi
+
+	if [[ ! -d "$HOME_DIR/.krunk" ]]; then
+		mkdir -p "$HOME_DIR/.krunk"
+	fi
+
+	touch "$HOME_DIR/.krunk_dirs"
+	echo 'export KRUNK_PREFIX="'"${HOME_DIR}"'/.krunk_dirs"' >> ~/.zshrc
+	echo 'alias krunk=". krunk"' >> ~/.zshrc
+
+	export KRUNK_PREFIX="$HOME_DIR/.krunk_dirs"
+}
+
+_krunk_command_init_dir() {
+	if [[ ! -d "$2" ]]; then
+		echo "Not a directory, can't init."
+	else
+		local fid=$(cat $KRUNK_PREFIX | grep -i "^$1")
+		local fdir=$(cat $KRUNK_PREFIX | grep -i "$2")
+
+		if [[ ! -z "$fid" ]]; then
+			echo "$1 is an ID that is already in use."
+		elif [[ ! -z "$fdir" ]]; then
+			echo "${2##*/} has already been init'd under the ID $(echo "$fdir" | sed "s/\(.*\) -> .*/\1/g")."
+		else
+			echo "$1 -> $2" >> "$KRUNK_PREFIX"
+		fi
+	fi
+}
+
+krunk_command_init() {
+	case $# in
+		(0) _init_dir "${(L)PWD##*/}" "${PWD}";;
+		(1)   _init_dir "${(L)1##*/}" "${1:A}";;
+		(2)            _init_dir "$1" "${2:A}";;
+		(*)         echo "Too many arguments.";;
+	esac
+}
+
+krunk_command_jump() {
+	if [[ $# -eq 0 ]]; then
+		echo "No krunk directory provided to jump to."
+	else
+		local fid=$(cat $KRUNK_PREFIX | grep -i "^$1")
+
+		if [[ -z "$fid" ]]; then
+			echo "$1 is not an ID that points to a krunk directory."
+		else
+			cd $(echo "$fid" | sed "s/.* -> \(.*\)/\1/g")
+		fi
+	fi
+}
+
+krunk_command_list() {
+	local kr_list=$(cat $KRUNK_PREFIX)
+
+	if [[ -z "$kr_list" ]]; then
+		echo "No krunk directories have been init'd."
+	else
+		echo "$kr_list"
+	fi
+}
+
+krunk_command_krm() {
+	if [[ $# -eq 0 ]]; then
+		echo "No krunk ID provided to remove."
+	else
+		local fid=$(cat $KRUNK_PREFIX | grep -i "^$1")
+
+		if [[ -z "$fid" ]]; then
+			echo "$1 is not an ID that points to a krunk directory."
+		else
+			sed -i "/$1/d" "$KRUNK_PREFIX"
+		fi
+	fi
+}
+
+krunk_command_help() {
+	cat <<EOU
+Usage: krunk [FUNCTION] [ARGUMENTS]
+
+Functions:
+  config-init:
+    Initializes the krunk ID map file, along with environment variables and aliases.
+  init:
+    Initializes a new krunk directory based on passed arguments.
+    The three cases that can occur are:
+      -> No arguments are passed in: The current working directory is init'd as a krunk directory, with an ID equal to
+      the name of the directory in lower case.
+      -> One argument is passed in: This should be a path to an existing directory. The given directory is init'd as a
+      krunk directory, with an ID equal to the name of the directory in lower case.
+      -> Two arguments are passed in: The first argument should be the desired ID for the directory, and the second should
+      be the path to the dreictory. The directory is init'd as a krunk directory, with an ID equal to the passed ID.
+  jump:
+    Jumps to the directory referenced by passed in ID.
+  ls|list:
+    Lists current krunk directory IDs along with the paths to those directories.
+  rm:
+    Removes a krunk directory from the database, the directory's contents are left unchanged.
+  help:
+    This function.
+EOU
+}
+
+op=$1
+
+if [[ -z $KRUNK_PREFIX && $op != "config-init" ]]; then
+	echo "Config directory hasn't been setup, please run krunk config-init <CONFIG DIRECTORY> first."
+else
+	if [[ ! $# -eq 0 ]]; then
+		shift
+	fi
+
+	case $op in
+		(config-init) krunk_command_config_init $@;;
+		(init)               krunk_command_init $@;;
+		(jump)               krunk_command_jump $@;;
+		(ls|list)            krunk_command_list $@;;
+		(rm)                  krunk_command_krm $@;;
+		(help|)                 krunk_command_help;;
+		(*)              echo "Invalid operation.";;
+	esac
+fi
