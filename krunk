@@ -29,7 +29,7 @@ _krunk_command_init_dir() {
 		local fdir=$(cat $KRUNK_PREFIX | grep -i "$2")
 
 		if [[ ! -z "$fid" ]]; then
-			echo "$1 is an ID that is already in use."
+			echo "$1 is an ID that is already in use." #is an ID that is already in use
 		elif [[ ! -z "$fdir" ]]; then
 			echo "${2##*/} has already been init'd under the ID $(echo "$fdir" | sed "s/\(.*\) -> .*/\1/g")."
 		else
@@ -49,7 +49,7 @@ krunk_command_init() {
 
 krunk_command_jump() {
 	if [[ $# -eq 0 ]]; then
-		echo "No krunk directory provided to jump to."
+		echo "No krunk directory provided to jump to."  #No krunk directory
 	else
 		local fid=$(cat $KRUNK_PREFIX | grep -i "^$1")
 
